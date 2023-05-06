@@ -36,7 +36,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.model_selection import train_test_split
 
 #to read and assign dataset to a dataframe
-df = pd.read_csv('<path_of_your_dataset_/dataset_name.csv',sep=',',decimal='.')
+df = pd.read_csv('<path_of_your_dataset/dataset_name.csv',sep=',',decimal='.')
 
 #to see column names
 df.columns
@@ -75,3 +75,80 @@ df3 = pd.concat([df2, bioactivity_class], axis=1)
 df4=df3[df3.toxicology_class.notna()]
 df5=df4[df4.Cell_viability.notna()]
 df5
+
+#Since categorical and binary data are more useful for classification algorithms, 
+#we can create a new column called 'toxicology_category' using the data in the 
+#'toxicology_class' column we previously created and 
+#add it to a new dataframe called df6 using the following code:
+
+class_cat = []
+for i in df5.toxicology_class:        
+  if i=='toxic':
+    class_cat.append("0")
+  if i=='nontoxic':
+    class_cat.append("1")
+
+class_category = pd.Series(class_cat, name='toxicology_category')
+df6 = pd.concat([df5, class_category], axis=1)
+df6
+
+#As an alternative, you can use this code
+df6 = pd.get_dummies(df5, drop_first=True) # to create categorical versions of all columns including toxicology_class
+
+#to drop unwanted raws you can use the code below:
+
+df5.drop(df5.loc[df5['Concentration_category']==1].index, inplace=True) #in this article concentration divided into 9 different category, not to create bias from untreated cells we preferred to drop those raws.
+
+#If you have numeric rows with NA values, you can discard them 
+#by writing the relevant column name in the following code.
+df6 = df5[df5.colum_name.notna()]
+
+
+#Since toxicology_class_toxic will be the endpoint we used in the article, we can separate it from the dataframe and 
+#assign it to a different variable for later use in classification.
+encoded_x = df6.drop('toxicology_class_toxic', axis=1)
+encoded_y=df6['toxicology_class_toxic']
+
+#to see distributions in dataframe:
+
+item_counts = df6["toxicology_class_toxic"].value_counts()
+item_counts
+
+
+#AFTER COMPLETING THE PREPARATION PROCESS, 
+#WE CAN START THE ANALYSIS ON THE DATAFRAME WITH THE FOLLOWING CODES
+
+shuffled = shuffle(df6) #To shuffle the dataframe in a way that does not create bias:
+feature_cols = ['Feautre_column1','Feature_column2', 'Feature_column3', 'Feature_column4']
+X = shuffled[feature_cols] # Features
+
+y = shuffled.toxicology_class_toxic # Target variable
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state = 12345, stratify = y) 
+# 70% training and 30% test, 
+#stratify=y ensures that the target binary variable (such as toxic=0, non-toxic=1) is distributed 
+#in the test and train sets in the same proportion as it is distributed 
+#throughout the entire dataframestratify=y ensures random split of data 
+
+# Create Decision Tree classifer object
+clf = DecisionTreeClassifier(max_depth=5, min_samples_leaf=15) #you can change the depth and leaf number 
+
+# Train Decision Tree Classifer
+clf = clf.fit(X_train,y_train)
+y_pred = clf.predict(X_test)
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+
+#to get metrics 
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1score = f1_score(y_test, y_pred)
+accuracy = accuracy_score(y_test, y_pred)
+print('Precision: ',precision)
+print('Recall: ', recall)
+print('f1score: ', f1score)
+
+shuffled.to_csv('<path_to_computer>/shuffled_dataset.csv')
+
+#TO CREATE PLOT THAT SHOWS FEATURE IMPORTANCE WITH VALUES
+
+
+
