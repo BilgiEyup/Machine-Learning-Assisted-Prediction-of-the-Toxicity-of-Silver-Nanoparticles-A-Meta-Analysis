@@ -35,5 +35,43 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 
+#to read and assign dataset to a dataframe
+df = pd.read_csv('<path_of_your_dataset_/dataset_name.csv',sep=',',decimal='.')
+
+#to see column names
+df.columns
+
+#to see dataframe's head and tail
+df
+
+#To assign a new dataframe that only contains the requested columns, use the following code:
+df2=df[['column_name1','column_name2','column_name3','column_name4','column_name7',]]
 
 
+
+#"In this article, the bioactivity threshold value is determined as 50. 
+#Therefore, those with cytotoxicity values of 50 or less are labeled as toxic, 
+#and those above 50 are labeled as non-toxic. By updating the following code 
+#according to your own threshold values, you can add these categories to a new column.
+
+#For example, you can consider the values between 90% and 110% as non-toxic, 
+#above 110% as proliferative, and between 50% and 90% as intermediate toxicity. 
+#You can add these values to a list called "bioactivity_threshold" and 
+#then append it to the "toxicology_class" column.
+
+#numeric_column_name is Cell_viability for our raw dataset
+bioactivity_threshold = []
+for i in df2.numeric_column_name:        
+  if float(i) >= 90 and float(i)<= 110:
+    bioactivity_threshold.append("nontoxic")
+  if float(i)>50 and float(i)<90:
+    bioactivity_threshold.append('nontoxic')
+  elif float(i) <= 50:
+    bioactivity_threshold.append("toxic")
+  elif float(i)>110:
+    bioactivity_threshold.append("nontoxic")
+bioactivity_class = pd.Series(bioactivity_threshold, name='toxicology_class')
+df3 = pd.concat([df2, bioactivity_class], axis=1)
+df4=df3[df3.toxicology_class.notna()]
+df5=df4[df4.Cell_viability.notna()]
+df5
