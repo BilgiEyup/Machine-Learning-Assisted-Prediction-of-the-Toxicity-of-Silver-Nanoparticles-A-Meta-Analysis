@@ -2,12 +2,16 @@
 
 
 !pip install dtreeviz #For decision tree visualization
-
+import dtreeviz
+import sys
+import os
 import dtreeviz.trees
 import pandas as pd
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt"The packages below are used for classifiers other than decision trees."
+import matplotlib.pyplot as plt 
+
+#The packages below are used for decision trees
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split 
 from sklearn import metrics
@@ -15,7 +19,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
 from sklearn import tree
 from sklearn.utils import shuffle
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     confusion_matrix,
@@ -36,7 +39,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.model_selection import train_test_split
 
 #to read and assign dataset to a dataframe
-df = pd.read_csv('<path_of_your_dataset/dataset_name.csv',sep=',',decimal='.')
+df = pd.read_csv('/path_of_your_dataset/dataset_name.csv',sep=',',decimal='.')
 
 #to see column names
 df.columns
@@ -150,5 +153,173 @@ shuffled.to_csv('<path_to_computer>/shuffled_dataset.csv')
 
 #TO CREATE PLOT THAT SHOWS FEATURE IMPORTANCE WITH VALUES
 
+# Create plot
+fig, ax = plt.subplots()
+
+# Create plot title
+ax.set_title("Feature Importance")
+
+# Add bars
+bars = ax.bar(range(X.shape[1]), importances[indices])
+
+# Add feature names as x-axis labels
+ax.set_xticks(range(X.shape[1]))
+ax.set_xticklabels(names, rotation=90)
+
+# Show values on bar
+for bar in bars:
+    height = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width() / 2, height, round(height, 2), ha="center", va="bottom")
+
+plt.savefig('featureDT1_valued.svg', format='svg')
+# See plot
+plt.show()
+
+#TO SEE WHETHER THE INCLUDED FEATURE USED IN THE MODEL USE THE CODE BELOW
+
+# define the feature columns and target variable
+feature_cols = ['Feature1', 'Feature2', 'Feature3', 'Feature4']
+X = shuffled[feature_cols]
+y = shuffled['target_variable']
+
+# split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=12345, stratify=y)
+
+# train the decision tree classifier
+clf = DecisionTreeClassifier(max_depth=5, min_samples_leaf=15, random_state=0)
+clf.fit(X_train, y_train)
+
+# get the features used in the decision tree
+used_features = set()
+for feature, threshold, _, _ in zip(clf.tree_.feature, clf.tree_.threshold, clf.tree_.children_left, clf.tree_.children_right):
+    if feature >= 0:
+        used_features.add(feature_cols[feature])
+
+print("Features used in the decision tree:")
+print(used_features)
 
 
+#TO GET AREA UNDER CURVES FOR DIFFERENT CLASSIFIER
+
+# Instantiate the classfiers and make a list
+classifiers = [LogisticRegression(random_state=1234), 
+               GaussianNB(), 
+               KNeighborsClassifier(), 
+               DecisionTreeClassifier(random_state=1234),
+               RandomForestClassifier(random_state=1234)]
+
+# Define a result table as a DataFrame
+result_table = pd.DataFrame(columns=['classifiers', 'fpr','tpr','auc'])
+
+# Train the models and record the results
+for cls in classifiers:
+    model = cls.fit(X_train, y_train)
+    yproba = model.predict_proba(X_test)[::,1]
+    
+    fpr, tpr, _ = roc_curve(y_test,  yproba)
+    auc = roc_auc_score(y_test, yproba)
+    
+    result_table = result_table.append({'classifiers':cls.__class__.__name__,
+                                        'fpr':fpr, 
+                                        'tpr':tpr, 
+                                        'auc':auc}, ignore_index=True)
+
+# Set name of the classifiers as index labels
+result_table.set_index('classifiers', inplace=True)
+
+#TO VISUALIZE THE ROC CURVE
+
+fig = plt.figure(figsize=(8,6))
+
+for i in result_table.index:
+    plt.plot(result_table.loc[i]['fpr'], 
+             result_table.loc[i]['tpr'], 
+             label="{}, AUC={:.3f}".format(i, result_table.loc[i]['auc']))
+    
+plt.plot([0,1], [0,1], color='orange', linestyle='--')
+
+plt.xticks(np.arange(0.0, 1.1, step=0.1))
+plt.xlabel("Flase Positive Rate", fontsize=15)
+
+plt.yticks(np.arange(0.0, 1.1, step=0.1))
+plt.ylabel("True Positive Rate", fontsize=15)
+
+plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
+plt.legend(prop={'size':13}, loc='lower right')
+
+plt.savefig('roc_curve.svg', format='svg')
+plt.show()
+
+
+#TO COMPARE CLASSIFIERS
+# Define feature columns and target variable
+feature_cols = ['Feature1', 'Feature2', 'Feature3', 'Feature4']
+target_col = 'target_variable'
+
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=12345, stratify=y)
+
+# Define models
+models = [
+    ('Logistic Regression', LogisticRegression()),
+    ('Gaussian Naive Bayes', GaussianNB()),
+    ('K-Nearest Neighbors', KNeighborsClassifier()),
+    ('Random Forest', RandomForestClassifier()),
+    ("Decision Tree", DecisionTreeClassifier(max_depth=5, min_samples_leaf=15))
+]
+
+# Evaluate models
+results = []
+for name, model in models:
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracy = round(accuracy_score(y_test, y_pred), 2)
+    precision = round(precision_score(y_test, y_pred), 2)
+    recall = round(recall_score(y_test, y_pred), 2)
+    f1score = round(f1_score(y_test, y_pred), 2)
+    results.append((name, accuracy, precision, recall, f1score))
+
+# Convert results to dataframe
+results_df = pd.DataFrame(results, columns=['Model', 'Accuracy', 'Precision', 'Recall', 'F1 Score'])
+
+# Display results as table
+print(results_df)
+
+# Save table as image
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.axis('off')
+ax.axis('tight')
+ax.table(cellText=results_df.values,colLabels=results_df.columns, loc='center')
+plt.savefig('path_to_computer/Comparison.svg', dpi=900, bbox_inches='tight')
+
+#TO VISUALIZE DECISION TREE
+
+%config InlineBackend.figure_format = 'retina' # Make visualizations look good
+%config InlineBackend.figure_format = 'svg' 
+%matplotlib inline
+
+if 'google.colab' in sys.modules:
+  !pip install -q dtreeviz
+import pandas as pd
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
+import dtreeviz
+dataset=shuffled
+random_state = 12345 
+stratify=y # get reproducible trees
+features = ['Concentration','Size_nm', 'Exposure_time_h', 'Coat_categorical']
+target = "toxicology_class_toxic"
+
+tree_classifier = DecisionTreeClassifier(max_depth=4, random_state=random_state)
+tree_classifier.fit(dataset[features].values, dataset[target].values)
+viz_model = dtreeviz.model(tree_classifier,
+                           X_train=dataset[features], y_train=dataset[target],
+                           feature_names=features,
+                           target_name=target,class_names=["nontoxic", "toxic"])
+viz_model.rtree_feature_space3D
+viz_model.view(fancy=True)
+#viz_model.view(fancy=False) #you can activate if you want a more detailed visualization
+
+v = viz_model.view()     # render as SVG into internal object 
+v.show()                 # pop up window
+v.save("/path_to_your_computer/decisiontree.svg")  # optionally save as svg
